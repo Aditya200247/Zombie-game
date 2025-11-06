@@ -1,146 +1,70 @@
+🎮 Game Features
 
+🧍 Player movement — Smooth top-down WASD controls with sprinting.
 
-    
-    player.update(1.0, keys)
+🔫 Three weapons — Pistol, Shotgun, and SMG — each with unique stats and reload mechanics.
 
-    # handle reload completion
-    if player.reloading:
-        weapon = player.weapons[player.curr_weapon]
-        if now - player.reload_start >= weapon["reload_time"]:
-            player.finish_reload()
+🧟 Dynamic zombie waves — Increasing difficulty as you progress through waves.
 
-    # Update bullets
-    for b in bullets[:]:
-        alive = b.update(1.0)
-        # if hit world bounds remove
-        if not (0 <= b.pos.x <= WORLD_W and 0 <= b.pos.y <= WORLD_H):
-            alive = False
-        # collide with obstacles
-        if alive:
-            for o in obstacles:
-                if o.collidepoint(b.pos.x, b.pos.y):
-                    alive = False
-                    break
-        if not alive:
-            try:
-                bullets.remove(b)
-            except ValueError:
-                pass
+🧱 Procedural obstacles — Randomly generated map every time you restart.
 
-    # Update zombies
-    for z in zombies[:]:
-        z.update(1.0, player.pos)
-        # collision with player
-        if z.rect.colliderect(player.rect):
-            player.health -= 20 * dt  
-            
-            push = (z.pos - player.pos)
-            if push.length() > 0:
-                push.scale_to_length(6)
-                player.pos -= push * dt
-        # zombies collide with obstacles by simple check
-        for o in obstacles:
-            if z.rect.colliderect(o):
-                # tiny random step to move around obstacle
-                z.pos += pygame.Vector2(random.uniform(-1,1), random.uniform(-1,1))
+💥 Pickups — Random ammo and health drops from zombies.
 
-    # Bullet-zombie collisions
-    for b in bullets[:]:
-        for z in zombies[:]:
-            if z.rect.collidepoint(b.pos.x, b.pos.y):
-                z.hp -= b.dmg
-                try:
-                    bullets.remove(b)
-                except ValueError:
-                    pass
-                if z.hp <= 0:
-                    player.score += 10 + (z.kind * 5)
-                    # chance to spawn pickup
-                    if random.random() < 0.2:
-                        spawn_pickup(z.pos.x, z.pos.y)
-                    try:
-                        zombies.remove(z)
-                    except ValueError:
-                        pass
-                break
+🗺️ Mini-map — Track nearby zombies and your own location.
 
-    # Pickup collisions
-    for pu in pickups[:]:
-        t, r, val = pu
-        if r.collidepoint(player.pos.x, player.pos.y):
-            if t == "ammo":
-                player.weapons[player.curr_weapon]["reserve"] += val
-            else:
-                player.health = min(player.max_health, player.health + val)
-            pickups.remove(pu)
+💀 Game over screen with restart and quit options.
 
-    # Check if wave cleared
-    if len(zombies) == 0:
-        last_wave_clear = True
+🧩 Camera system — Smoothly follows the player around a large 2400x1800 world.
 
-    # spawn passive zombies periodically (if under limit)
-    if len(zombies) < 25 and random.random() < 0.02:
-        spawn_zombie_offscreen(player.pos, min_dist=300)
+| Key / Mouse   | Action                     |
+| ------------- | -------------------------- |
+| `W, A, S, D`  | Move player                |
+| `Left Shift`  | Sprint                     |
+| `Left Click`  | Shoot                      |
+| `Right Click` | Reload                     |
+| `1, 2, 3`     | Switch weapon              |
+| `R`           | Reload (alternate)         |
+| `Q`           | Quit (on game over screen) |
 
-    # camera update
-    cam.update(player.rect)
+🧰 Requirements
 
-    # Draw world to screen
-    screen.fill((18, 18, 18))
-    draw_world(screen, cam)
+Make sure you have Python 3.8+ installed.
+Then install dependencies with:
 
-    # Draw bullets (world space)
-    for b in bullets:
-        br = b.rect.copy()
-        br = cam.apply(br)
-        # rotate bullet to velocity direction
-        angle = math.degrees(math.atan2(-b.vel.y, b.vel.x))
-        surf = pygame.transform.rotate(bullet_img, angle)
-        rect = surf.get_rect(center=(br.centerx, br.centery))
-        screen.blit(surf, rect)
+Object-Oriented Design:
+Classes for Player, Zombie, Bullet, and Camera ensure modular structure.
 
-    # Draw zombies
-    for z in zombies:
-        zr = cam.apply(z.rect)
-        screen.blit(z.image, zr)
-        # hp bar over zombie
-        hp_frac = max(0, z.hp / z.max_hp)
-        bw = z.rect.width
-        hh = 5
-        hx = zr.x; hy = zr.y - 8
-        pygame.draw.rect(screen, (40,40,40), (hx, hy, bw, hh))
-        pygame.draw.rect(screen, (200, 40, 40), (hx, hy, int(bw * hp_frac), hh))
+Smart Spawning System:
+Zombies spawn outside the player’s view range, creating a true open-world experience.
 
-    # Draw obstacles 
-    for o in obstacles:
-        ro = cam.apply(o)
-        # screen.blit placeholder or darker outline already done
+Procedural Map Generation:
+Each run generates unique obstacles and pickups.
 
-    # Draw player (rotated to face mouse)
-    mouse_world = pygame.Vector2(pygame.mouse.get_pos()[0] + cam.x, pygame.mouse.get_pos()[1] + cam.y)
-    angle = math.degrees(math.atan2(player.pos.y - mouse_world.y, mouse_world.x - player.pos.x))
-    player_rot = pygame.transform.rotate(player.image, angle)
-    prow = player_rot.get_rect(center=(player.pos.x - cam.x, player.pos.y - cam.y))
-    screen.blit(player_rot, prow)
+Wave Management:
+Difficulty scales automatically based on wave progression.
 
-    # Draw pickups
-    for t, r, val in pickups:
-        pr = cam.apply(r)
-        if t == "ammo":
-            pygame.draw.rect(screen, BLUE, pr)
-            pygame.draw.rect(screen, WHITE, pr, 1)
-        else:
-            pygame.draw.rect(screen, GREEN, pr)
-            pygame.draw.rect(screen, WHITE, pr, 1)
+Scoring System
 
-    # HUD
-    draw_hud(screen, player, cam)
++10 points for regular zombies
 
-    pygame.display.flip()
++15 or +20 for tougher types
 
-    # Check death
-    if player.health <= 0:
-        game_over_screen(player.score)
-        reset_world()
+Waves increase zombie spawn count exponentially
 
-pygame.quit()
+Planned Improvements
+
+ Add sound effects and background music
+
+ Implement zombie pathfinding around obstacles
+
+ Add weapon upgrade or shop system
+
+ Multiplayer (LAN co-op mode)
+
+ Add boss waves
+ Author
+
+Aditya Kumar Thakur
+🎓 B.Tech AI & ML | Python Developer | Game Enthusiast
+📧 [thakuradityakumar17@gmail.com]
+🌐 
